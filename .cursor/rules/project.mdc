@@ -1,0 +1,430 @@
+---
+description: This is go to file for request related to Project guidelines, Project Structure and readme
+globs: 
+alwaysApply: false
+---
+
+## 1. Project Overview
+
+This extension helps users manage their job search process through Raycast. The primary features include:
+
+- **Phase 1**: Tailored resume generation based on job descriptions
+- **Phase 2**: Cover letter creation and email composition
+- **Phase 3**: Job application tracking
+
+The extension operates by allowing users to:
+1. Create and maintain a profile with their professional information
+2. Input job descriptions through URLs, browser integration, or copy/paste
+3. Generate tailored resumes based on their profile and the job description
+4. Save and manage generated documents locally
+
+## 2. File Organization Structure
+
+```
+src/
+├── index.ts                 # Entry point for the extension
+├── commands/                # Command definitions
+│   ├── createResume.tsx     # Main resume generation command
+│   ├── editProfile.tsx      # Profile management command
+│   ├── viewSavedResumes.tsx # Resume viewing command
+│   └── settings.tsx         # Extension settings
+│
+├── components/              # Reusable UI components 
+│   ├── common/              # Shared UI elements
+│   │   ├── Button.tsx
+│   │   ├── FormField.tsx
+│   │   └── LoadingIndicator.tsx
+│   │
+│   ├── profile/             # Profile-related components
+│   │   ├── ProfileForm.tsx
+│   │   ├── BasicInfoSection.tsx
+│   │   ├── SkillsSection.tsx
+│   │   ├── ExperienceSection.tsx
+│   │   └── EducationSection.tsx
+│   │
+│   └── resume/              # Resume-related components
+│       ├── ResumePreview.tsx
+│       ├── TemplateSelector.tsx
+│       └── GenerationOptions.tsx
+│
+├── models/                  # Type definitions and interfaces
+│   ├── profile.ts           # Profile data structures
+│   ├── resume.ts            # Resume data structures
+│   └── job.ts               # Job description data structures
+│
+├── services/                # Business logic and services
+│   ├── profileManager/      # Profile management logic
+│   │   ├── index.ts         # Main exports
+│   │   ├── storage.ts       # Profile storage operations
+│   │   └── validation.ts    # Profile data validation
+│   │
+│   ├── resumeGenerator/     # Resume generation logic
+│   │   ├── index.ts
+│   │   ├── generator.ts     # Core algorithm
+│   │   ├── templates/       # Resume templates
+│   │   └── exporters.ts     # PDF/file generation 
+│   │
+│   └── jobParser/           # Job description parsing
+│       ├── index.ts
+│       ├── urlParser.ts     # Extract JD from URLs
+│       └── textParser.ts    # Extract keywords from text
+│
+├── utils/                   # Helper functions
+│   ├── storage.ts           # LocalStorage utilities
+│   ├── dates.ts             # Date formatting helpers
+│   └── text.ts              # Text processing helpers
+│
+├── hooks/                   # Custom React hooks
+│   ├── useProfile.ts        # Profile data access hook
+│   ├── useJobDescription.ts # Job description hook
+│   └── useResumeGenerator.ts # Resume generation hook
+│
+└── contexts/                # React contexts
+    ├── ProfileContext.tsx   # Global profile state
+    └── SettingsContext.tsx  # Extension settings state
+```
+
+## 3. Naming Conventions
+
+### Files and Directories
+- **Commands**: camelCase (e.g., `createResume.tsx`, `editProfile.tsx`)
+- **Components**: PascalCase (e.g., `Button.tsx`, `ProfileForm.tsx`)
+- **Hooks**: camelCase with 'use' prefix (e.g., `useProfile.ts`, `useJobParser.ts`)
+- **Services**: camelCase (e.g., `storage.ts`, `generator.ts`)
+- **Models/Types**: PascalCase (e.g., `Profile.ts`, `Resume.ts`)
+- **Test files**: Same name as source + `.test.ts(x)`
+
+### Code Elements
+- **Components**: PascalCase (e.g., `const ProfileForm = () => {}`)
+- **Functions**: camelCase (e.g., `function parseJobDescription() {}`)
+- **Constants**: UPPER_SNAKE_CASE (e.g., `const MAX_SKILLS_COUNT = 10`)
+- **Interfaces**: PascalCase with 'I' prefix (e.g., `interface IProfileProps {}`)
+- **Types**: PascalCase (e.g., `type SkillLevel = 'beginner' | 'advanced'`)
+
+## 4. Type Definitions
+
+### Profile Data Structure
+
+```typescript
+// models/profile.ts
+export type SkillLevel = "beginner" | "intermediate" | "advanced" | "expert";
+
+export interface Skill {
+  id: string;           // Unique identifier
+  name: string;         // Name of skill
+  category?: string;    // Optional category
+  level: SkillLevel;    // Proficiency level
+  yearsOfExperience?: number;
+}
+
+export interface Experience {
+  id: string;
+  company: string;
+  title: string;
+  startDate: string;    // ISO format
+  endDate?: string;     // Optional if current position
+  current: boolean;
+  description: string;
+  achievements: string[];
+  technologies: string[];
+}
+
+export interface Education {
+  id: string;
+  institution: string;
+  degree: string;
+  field: string;
+  graduationDate: string;
+  gpa?: number;
+  honors?: string[];
+}
+
+export interface Profile {
+  userId: string;       // Unique identifier
+  version: string;      // Schema version
+  lastUpdated: string;  // ISO timestamp
+  basicInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone?: string;
+    title?: string;
+    summary?: string;
+    location?: string;
+    portfolioUrl?: string;
+    socialLinks?: {
+      linkedin?: string;
+      github?: string;
+      twitter?: string;
+    };
+  };
+  skills: Skill[];
+  experience: Experience[];
+  education: Education[];
+}
+```
+
+### Type Safety Rules
+1. Always use TypeScript's strict mode
+2. Avoid using `any` type - use proper types or `unknown` when necessary
+3. Define explicit return types for all functions
+4. Use generics appropriately for reusable components
+5. Implement proper validation before type assertions
+
+## 5. Component Guidelines
+
+### Functional Component Pattern
+
+```typescript
+// components/profile/SkillsSection.tsx
+import { List, ActionPanel, Action } from "@raycast/api";
+import { Skill } from "../../models/profile";
+
+interface SkillsSectionProps {
+  skills: Skill[];
+  onAddSkill: (skill: Skill) => void;
+  onRemoveSkill: (skillId: string) => void;
+  onEditSkill: (skill: Skill) => void;
+}
+
+export const SkillsSection: React.FC<SkillsSectionProps> = ({
+  skills,
+  onAddSkill,
+  onRemoveSkill,
+  onEditSkill,
+}) => {
+  return (
+    <List>
+      {skills.map((skill) => (
+        <List.Item
+          key={skill.id}
+          title={skill.name}
+          subtitle={skill.level}
+          actions={
+            <ActionPanel>
+              <Action title="Edit" onAction={() => onEditSkill(skill)} />
+              <Action
+                title="Remove"
+                style={Action.Style.Destructive}
+                onAction={() => onRemoveSkill(skill.id)}
+              />
+            </ActionPanel>
+          }
+        />
+      ))}
+    </List>
+  );
+};
+```
+
+### Component Best Practices
+1. Keep components small and focused on a single responsibility
+2. Use props for component configuration and callbacks
+3. Extract reusable logic into custom hooks
+4. Use Raycast's UI components rather than building custom ones
+5. Implement error handling for all user actions
+
+## 6. State Management
+
+### Local State
+```typescript
+// Example of local component state
+import { useState } from "react";
+import { Skill } from "../../models/profile";
+
+export function useSkillForm(initialSkill?: Skill) {
+  const [skill, setSkill] = useState<Skill>(
+    initialSkill || {
+      id: nanoid(),
+      name: "",
+      level: "intermediate" as SkillLevel,
+    }
+  );
+
+  const updateSkill = (field: keyof Skill, value: any) => {
+    setSkill({
+      ...skill,
+      [field]: value,
+    });
+  };
+
+  return { skill, updateSkill };
+}
+```
+
+### Global State With Context
+```typescript
+// contexts/ProfileContext.tsx
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Profile } from "../models/profile";
+import { getProfile, saveProfile } from "../services/profileManager/storage";
+
+interface ProfileContextType {
+  profile: Profile | null;
+  isLoading: boolean;
+  updateProfile: (profile: Profile) => Promise<void>;
+}
+
+const ProfileContext = createContext<ProfileContextType | undefined>(undefined);
+
+export function ProfileProvider({ children }: { children: React.ReactNode }) {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    async function loadProfile() {
+      const data = await getProfile();
+      setProfile(data);
+      setIsLoading(false);
+    }
+    loadProfile();
+  }, []);
+
+  async function updateProfile(updatedProfile: Profile) {
+    await saveProfile(updatedProfile);
+    setProfile(updatedProfile);
+  }
+  
+  return (
+    <ProfileContext.Provider value={{ profile, isLoading, updateProfile }}>
+      {children}
+    </ProfileContext.Provider>
+  );
+}
+
+export function useProfileContext() {
+  const context = useContext(ProfileContext);
+  if (context === undefined) {
+    throw new Error("useProfileContext must be used within a ProfileProvider");
+  }
+  return context;
+}
+```
+
+## 7. Error Handling
+
+1. Use try-catch blocks for all async operations
+2. Display meaningful error messages using Raycast's Toast API
+3. Implement fallback UI for error states
+4. Add proper input validation before form submission
+
+```typescript
+// Example error handling pattern
+try {
+  await saveProfile(profile);
+  showToast({
+    style: Toast.Style.Success,
+    title: "Profile saved successfully"
+  });
+} catch (error) {
+  console.error("Failed to save profile:", error);
+  showToast({
+    style: Toast.Style.Failure,
+    title: "Failed to save profile",
+    message: "Please try again or check logs for details"
+  });
+}
+```
+
+## 8. Storage Patterns
+
+Always use Raycast's LocalStorage API for data persistence:
+
+```typescript
+// services/profileManager/storage.ts
+import { LocalStorage } from "@raycast/api";
+import { Profile } from "../../models/profile";
+
+const PROFILE_STORAGE_KEY = "job-assistant-user-profile";
+
+export async function saveProfile(profile: Profile): Promise<void> {
+  try {
+    await LocalStorage.setItem(
+      PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        ...profile,
+        lastUpdated: new Date().toISOString(),
+      })
+    );
+  } catch (error) {
+    console.error("Failed to save profile:", error);
+    throw new Error("Failed to save profile");
+  }
+}
+
+export async function getProfile(): Promise<Profile | null> {
+  try {
+    const data = await LocalStorage.getItem(PROFILE_STORAGE_KEY);
+    return data ? JSON.parse(data) : null;
+  } catch (error) {
+    console.error("Failed to retrieve profile:", error);
+    return null;
+  }
+}
+```
+
+## 9. Documentation Standards
+
+1. Use JSDoc for all functions and components
+
+```typescript
+/**
+ * Generates a tailored resume based on user profile and job description
+ * 
+ * @param profile - The user's profile containing skills, experience, etc.
+ * @param jobDescription - The parsed job description to match against
+ * @param options - Generation options like template selection
+ * @returns A promise resolving to the generated resume content
+ */
+export async function generateResume(
+  profile: Profile,
+  jobDescription: JobDescription,
+  options: GenerationOptions
+): Promise<ResumeContent> {
+  // Implementation...
+}
+```
+
+2. Include detailed comments for complex logic
+3. Document all exported functions, types, and components
+4. Keep README files up-to-date with setup and usage instructions
+
+## 10. Testing Guidelines
+
+1. Test individual components in isolation
+2. Test service functions with different inputs
+3. Mock external dependencies and API calls
+4. Follow the Arrange-Act-Assert pattern
+
+```typescript
+describe("ProfileManager", () => {
+  beforeEach(() => {
+    // Clear storage before each test
+  });
+
+  it("should save and retrieve a profile", async () => {
+    // Arrange
+    const profile = createTestProfile();
+    
+    // Act
+    await saveProfile(profile);
+    const retrievedProfile = await getProfile();
+    
+    // Assert
+    expect(retrievedProfile).toEqual(profile);
+  });
+});
+```
+
+## 11. Development Workflow
+
+1. Start with defining types in the models directory
+2. Implement core services for data handling
+3. Create UI components with proper typing
+4. Connect components with services via hooks
+5. Implement commands that use the components and services
+6. Test thoroughly before submission
+
+---
+
+*Last Updated: 2025-04-09*
